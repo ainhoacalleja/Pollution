@@ -1,0 +1,422 @@
+---
+title: "Contaminantes"
+author: "Ainhoa Calleja Rodriguez"
+date: "2024-12-15"
+output: pdf_document
+---
+
+## Ejemplo ARIMA en R
+Ejemplo de ARIMA en R
+El paquete forecast es ideal para trabajar con modelos ARIMA. A continuación, un ejemplo utilizando datos simulados que representan concentraciones de contaminantes (PM2.5):
+```{r}
+# Instalar paquetes si no están instalados
+if (!require(forecast)) install.packages("forecast")
+if (!require(ggplot2)) install.packages("ggplot2")
+
+library(forecast)
+library(ggplot2)
+
+# Simular datos diarios de concentración de PM2.5 (un año)
+set.seed(123)
+fechas <- seq(as.Date("2023-01-01"), by = "day", length.out = 365)
+pm25 <- 50 + sin(2 * pi * (1:365) / 365) * 10 + rnorm(365, 0, 5) # Tendencia estacional + ruido
+
+# Crear un objeto de serie temporal
+pm25_ts <- ts(pm25, frequency = 365)
+
+# Graficar los datos
+autoplot(pm25_ts, main = "Concentración diaria de PM2.5", xlab = "Día", ylab = "PM2.5")
+
+# Ajustar un modelo ARIMA automáticamente
+modelo_arima <- auto.arima(pm25_ts)
+
+# Resumen del modelo
+summary(modelo_arima)
+
+# Predecir los próximos 30 días
+forecast_arima <- forecast(modelo_arima, h = 30)
+
+# Graficar las predicciones
+autoplot(forecast_arima, main = "Predicción de PM2.5 (ARIMA)")
+
+```
+
+## Ejemplo de Prophet en R
+El paquete prophet permite una implementación sencilla para predicción de series temporales.
+```{r}
+# Instalar paquetes si no están instalados
+if (!require(prophet)) install.packages("prophet")
+
+library(prophet)
+
+# Crear un marco de datos para Prophet
+datos_pm25 <- data.frame(
+  ds = fechas,    # Columna de fechas
+  y = pm25        # Columna de concentraciones de PM2.5
+)
+
+# Ajustar el modelo Prophet
+modelo_prophet <- prophet(datos_pm25)
+
+# Hacer predicciones para los próximos 30 días
+futuro <- make_future_dataframe(modelo_prophet, periods = 30)
+predicciones <- predict(modelo_prophet, futuro)
+
+# Graficar las predicciones
+plot(modelo_prophet, predicciones) +
+  ggtitle("Predicción de PM2.5 (Prophet)")
+
+# Graficar los componentes (tendencia, estacionalidad)
+prophet_plot_components(modelo_prophet, predicciones)
+
+```
+
+## Paquetes de datos en R relacionados con la calidad del aire
+### 1. Paquete openair
+Este paquete está diseñado para el análisis de datos de calidad del aire.
+Incluye datos de ejemplo, como el conjunto mydata, que contiene datos de calidad del aire en Londres.
+El paquete openair soporta la importación de datos directamente desde la red AEMET (Agencia Estatal de Meteorología) y otras fuentes, aunque necesitarás procesar datos descargados manualmente en algunos casos.
+
+```{r}
+if (!require(openair)) install.packages("openair")
+
+library(openair)
+
+# Cargar datos de ejemplo
+data(mydata) 
+
+# Ver las primeras filas del dataset
+head(mydata)
+
+# Graficar concentraciones de NOx
+timePlot(mydata, pollutant = "nox", main = "Concentración de NOx en Londres")
+
+```
+
+### 2. Paquete eurostat
+
+Proporciona acceso a datos ambientales de Eurostat, incluyendo datos sobre calidad del aire en Europa.
+```{r}
+if (!require(eurostat)) install.packages("eurostat")
+
+library(eurostat)
+
+# Buscar conjuntos de datos relacionados con calidad del aire
+search <- search_eurostat("air quality")
+head(search)
+
+# Descargar un conjunto de datos sobre emisiones de contaminantes
+data_air <- get_eurostat("env_air_emis")
+
+# Visualizar las primeras filas
+head(data_air)
+
+
+# Descargar un conjunto de datos de emisiones de contaminantes
+data_air <- get_eurostat("env_air_emis")
+
+# Filtrar los datos para España
+data_air_spain <- subset(data_air, geo == "ES")
+head(data_air_spain)
+
+
+```
+
+### 3. Paquete RAQSAPI
+
+Permite acceder a datos históricos de calidad del aire de la EPA en Estados Unidos (Air Quality System).
+Requiere una API key.
+```{r}
+if (!require(RAQSAPI)) install.packages("RAQSAPI")
+
+library(RAQSAPI)
+
+# Configurar API Key
+set_api_key("TU_API_KEY")
+
+# Descargar datos de calidad del aire
+datos_aire <- get_aqs_monitors_by_state(state_code = "06", bdate = "20230101", edate = "20231231")
+head(datos_aire)
+
+```
+### 4. Paquete rdefra
+
+Accede a datos de calidad del aire del Reino Unido a través de la API DEFRA.
+
+```{r}
+if (!require(rdefra)) install.packages("rdefra")
+
+library(rdefra)
+
+# Descargar estaciones de monitoreo
+stations <- ukair_catalogue()
+
+# Ver las estaciones disponibles
+head(stations)
+
+# Descargar datos de una estación específica
+datos_defra <- ukair_get_hourly_data(site_id = "BR10", year = 2023)
+head(datos_defra)
+
+```
+
+### 5. Paquete worldmet
+El paquete worldmet facilita la descarga de datos meteorológicos globales (incluyendo España) y es útil para analizar factores asociados a la calidad del aire, como el viento, la temperatura, etc.
+
+```{r}
+if (!require(worldmet)) install.packages("worldmet")
+
+library(worldmet)
+
+# Buscar estaciones en España
+stations <- getMeta(lat = 40.4168, lon = -3.7038, radius = 200) # Alrededor de Madrid
+head(stations)
+
+# Descargar datos meteorológicos de una estación
+datos_meteo <- importNOAA(code = "08221", year = 2023)
+head(datos_meteo)
+
+```
+
+### 6. Paquete ropenaq
+El paquete ropenaq permite descargar datos de calidad del aire de la plataforma OpenAQ, que incluye algunas ciudades en España.
+```{r}
+if (!require(ropenaq)) install.packages("ropenaq")
+
+library(ropenaq)
+
+# Buscar datos disponibles para España
+spain_data <- aq_measurements(country = "ES", city = "Madrid", limit = 100)
+head(spain_data)
+
+# Graficar concentraciones de PM10
+library(ggplot2)
+ggplot(spain_data, aes(dateLocal, value)) +
+  geom_line() +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(title = "Concentraciones de PM10 en Madrid")
+
+```
+
+### 7. Datos de AEMET a través del Paquete aemet
+El paquete aemet facilita el acceso a datos meteorológicos y de calidad del aire de la Agencia Estatal de Meteorología de España. Requiere una API Key gratuita, que puedes obtener desde el portal de AEMET.
+
+```{r}
+if (!require(aemet)) install.packages("aemet")
+
+library(aemet)
+
+# Configurar tu API Key (solicítala en AEMET)
+aemet_api_key("TU_API_KEY")
+
+# Descargar datos de calidad del aire
+estaciones <- aemet_stations()
+head(estaciones)
+
+# Ejemplo: Descargar datos meteorológicos
+datos_aemet <- aemet_daily(period = "2023-01-01/2023-12-31")
+head(datos_aemet)
+
+```
+
+
+## Análisis espaciales
+### 1. Uso de sp y sf para análisis espacial
+Ejemplo: Mapear estaciones de monitoreo de contaminantes
+```{r}
+# Instalar y cargar los paquetes
+install.packages(c("sp", "raster", "terra", "sf", "gstat"))
+library(sp)
+library(raster)
+library(terra)
+library(sf)
+library(gstat)
+library(ggplot2)
+
+# Verifica las versiones
+packageVersion("sf")
+packageVersion("sp")
+packageVersion("raster")
+packageVersion("terra")
+packageVersion("gstat")
+
+# update.packages(ask = FALSE)
+
+# Prueba un ejemplo sencillo con sf
+library(sf)
+point <- st_point(c(-3.7038, 40.4168)) # Crear un punto (longitud, latitud)
+print(point)
+
+
+# Crear un conjunto de datos de ejemplo con coordenadas de estaciones
+estaciones <- data.frame(
+  id = c("Est1", "Est2", "Est3"),
+  lon = c(-3.7038, -3.6921, -3.6833),
+  lat = c(40.4168, 40.4170, 40.4130),
+  contaminante = c("NO2", "PM10", "O3")
+)
+
+# Convertir a un objeto espacial usando sf
+estaciones_sf <- st_as_sf(estaciones, coords = c("lon", "lat"), crs = 4326)
+
+# Visualizar en un mapa básico con ggplot2
+ggplot(estaciones_sf) +
+  geom_sf(aes(color = contaminante), size = 4) +
+  labs(title = "Ubicación de estaciones de monitoreo", color = "Contaminante") +
+  theme_minimal()
+
+```
+
+### 2. Uso de raster o terra para datos espaciales en formato raster
+Ejemplo: Crear un mapa interpolado de concentraciones de contaminantes
+```{r}
+
+# Cargar las bibliotecas necesarias
+library(raster)
+library(terra)
+library(gstat)
+library(sp)
+library(sf)
+library(ggplot2)
+
+# Crear puntos simulados con valores de concentración de NO2
+coords <- data.frame(
+  lon = c(-3.7038, -3.6921, -3.6833, -3.7000, -3.6950),
+  lat = c(40.4168, 40.4170, 40.4130, 40.4200, 40.4150),
+  NO2 = c(50, 60, 45, 55, 65)
+)
+
+# Convertir a un objeto SpatialPointsDataFrame para interpolación
+coords_sf <- st_as_sf(coords, coords = c("lon", "lat"), crs = 4326)
+coords_sp <- as(coords_sf, "Spatial")
+
+# Crear un raster base para interpolación
+r <- raster(extent(coords_sp), ncol = 100, nrow = 100)
+crs(r) <- crs(coords_sp)  # Asignar el CRS de los puntos al raster
+
+# Asegurarnos de que ambos tengan el mismo CRS, si no es así, reproyectamos
+if (!identical(crs(coords_sp), crs(r))) {
+  r <- projectRaster(r, crs = crs(coords_sp))  # Reproyectar raster
+}
+
+# Convertir el raster a un data.frame (esto da un data.frame con las coordenadas y los valores)
+r_points <- rasterToPoints(r)
+
+# Verificar el tamaño de r_points
+print(dim(r_points))
+
+# Convertir el objeto r_points (matriz) en un data.frame
+r_df <- as.data.frame(r_points)
+
+# Asegurarse de que r_points tiene 3 columnas (x, y, value)
+if (ncol(r_df) == 2) {
+  # Si solo tiene 2 columnas (x, y), añadir una columna de valores NA
+  r_df$value <- NA
+} else if (ncol(r_df) == 3) {
+  colnames(r_df) <- c("x", "y", "value")
+}
+
+# Crear un SpatialPointsDataFrame para el raster con las coordenadas y los valores del raster
+coords_sp_raster <- SpatialPointsDataFrame(r_df[, 1:2], data = r_df[, 3, drop = FALSE])
+
+# Asegurarse de que coords_sp_raster tenga el mismo CRS que coords_sp
+crs(coords_sp_raster) <- crs(coords_sp)
+
+# Verificar que ambos CRS sean iguales
+print(crs(coords_sp))  # CRS de los puntos de datos
+print(crs(coords_sp_raster))  # CRS del raster
+
+# Realizar la interpolación IDW
+idw_result <- gstat::idw(NO2 ~ 1, coords_sp, newdata = coords_sp_raster)
+
+# Verificar el resultado de la interpolación
+print(idw_result)
+
+# Convertir el resultado de IDW en un data.frame para su visualización con ggplot
+idw_df <- as.data.frame(idw_result)
+
+# Visualización con ggplot2
+ggplot(idw_df, aes(x = x, y = y, fill = var1.pred)) +
+  geom_raster() +
+  scale_fill_viridis_c() +
+  coord_equal() +
+  theme_minimal() +
+  labs(title = "Interpolación IDW de NO2", fill = "Concentración de NO2") +
+  theme(legend.position = "right")
+
+
+```
+
+### 3. Uso de mgcv para Modelos Aditivos Generalizados (GAMs)
+Ejemplo: Relación entre concentración de NO2 y temperatura
+```{r}
+# Instalar y cargar paquetes
+install.packages("mgcv")
+library(mgcv)
+
+# Simular datos de ejemplo
+set.seed(123)
+data <- data.frame(
+  temperatura = runif(100, 10, 35), # Temperatura entre 10 y 35°C
+  NO2 = 30 + 5 * sin(seq(0, 2 * pi, length.out = 100)) + rnorm(100, 0, 2) # Concentraciones de NO2
+)
+
+# Ajustar un modelo GAM
+modelo_gam <- gam(NO2 ~ s(temperatura), data = data)
+
+# Resumen del modelo
+summary(modelo_gam)
+
+# Visualizar los resultados
+plot(modelo_gam, shade = TRUE, main = "Efecto de la temperatura sobre NO2")
+
+```
+
+Otro ejemplo
+```{r}
+# Cargar las bibliotecas necesarias
+library(gstat)
+library(raster)
+library(sp)
+library(terra)
+
+# Crear un raster de ejemplo (10x10 celdas) usando 'raster'
+r_raster <- raster(ncol = 10, nrow = 10)
+extent(r_raster) <- c(0, 10, 0, 10)  # Definir el área espacial
+values(r_raster) <- rnorm(ncell(r_raster))  # Asignar valores aleatorios de contaminación
+
+# Convertir el raster a puntos usando rasterToPoints
+r_points <- rasterToPoints(r_raster)
+coords_raster <- data.frame(x = r_points[, 1], y = r_points[, 2], value = r_points[, 3])
+
+# Crear un objeto SpatialPointsDataFrame
+coords_sp <- SpatialPointsDataFrame(coords_raster[, 1:2], data = coords_raster[, 3, drop = FALSE])
+
+# Verifica los valores de coords_sp$value
+summary(coords_sp$value)
+
+# Si los valores son negativos, puedes normalizarlos para la visualización
+coords_sp$value <- coords_sp$value - min(coords_sp$value)  # Asegura que los valores sean >= 0
+
+# Ver los puntos creados y graficar con colores apropiados
+plot(coords_sp, col = coords_sp$value, pch = 16, main = "Puntos de muestreo con valores NO2")
+
+# Ahora crear un objeto SpatialPointsDataFrame para los puntos de muestreo (NO2)
+coords <- data.frame(x = c(1, 2, 3, 4, 5), y = c(1, 2, 3, 4, 5))
+values <- c(10, 15, 20, 25, 30)  # Ejemplo de valores de NO2
+
+# Crear el SpatialPointsDataFrame
+coords_sp_sample <- SpatialPointsDataFrame(coords, data = data.frame(NO2 = values))
+
+# Ver los puntos de muestreo
+plot(coords_sp_sample, col = "red", pch = 16)
+
+# Realizar la interpolación IDW con gstat usando los puntos de muestreo y el raster convertido a puntos
+idw_result <- gstat::idw(NO2 ~ 1, coords_sp_sample, newdata = coords_sp)
+
+# Mostrar el resultado de la interpolación
+plot(idw_result)
+
+
+```
+

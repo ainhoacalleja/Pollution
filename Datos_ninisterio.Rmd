@@ -1,0 +1,148 @@
+---
+title: "Datos_ministerio"
+author: "Ainhoa Calleja Rodriguez"
+date: "2024-12-15"
+output: pdf_document
+---
+
+Datos ministerio
+```{r}
+# Cargar librerías necesarias
+library(tidyverse)
+library(lubridate)
+
+# Cargar los datos desde un archivo CSV
+> library(readr)
+> Ni_DD_2023 <- read_delim("Documents/Analisis_R/Datos diarios 2023/Ni_DD_2023.csv", 
++     delim = ";", escape_double = FALSE, trim_ws = TRUE)
+names(Ni_DD_2023)
+# Resumen de los datos para ver los valores faltantes
+summary(Ni_DD_2023)
+
+# Convertir a formato largo
+Ni_DD_2023_long <- Ni_DD_2023 %>%
+  pivot_longer(cols = starts_with("D"), 
+               names_to = "Dia", 
+               values_to = "Concentracion")
+
+# Ver las primeras filas
+head(Ni_DD_2023_long)
+
+# Eliminar filas con NA
+Ni_DD_2023_long_clean <- Ni_DD_2023_long %>%
+  drop_na(Concentracion)
+#___________________________
+# Calcular Q1, Q3 y IQR
+Q1 <- quantile(Ni_DD_2023_long_clean$Concentracion, 0.25)
+Q3 <- quantile(Ni_DD_2023_long_clean$Concentracion, 0.75)
+IQR_value <- IQR(Ni_DD_2023_long_clean$Concentracion)
+
+
+# Detectar outliers
+outliers <- Ni_DD_2023_long_clean %>%
+  filter(Concentracion < (Q1 - 1.5 * IQR_value) | Concentracion > (Q3 + 1.5 * IQR_value))
+
+# Ver los outliers
+head(outliers)
+# Boxplot para detectar outliers
+ggplot(Ni_DD_2023_long_clean, aes(y = Concentracion)) +
+  geom_boxplot() +
+  labs(title = "Boxplot de Concentración de Ni en 2023", y = "Concentración de Ni (µg/m³)")
+
+#___________________________
+# Calcular el Z-score
+Ni_DD_2023_long_clean$z_score <- scale(Ni_DD_2023_long_clean$Concentracion)
+
+# Filtrar outliers (Z-score > 3 o < -3)
+outliers_z <- Ni_DD_2023_long_clean %>%
+  filter(abs(z_score) > 3)
+
+# Ver los outliers según Z-score
+head(outliers_z)
+# Gráfico de dispersión para observar posibles outliers
+ggplot(Ni_DD_2023_long_clean, aes(x = Dia, y = Concentracion)) +
+  geom_point() +
+  labs(title = "Gráfico de dispersión de Concentración de Ni", x = "Día", y = "Concentración de Ni (µg/m³)")
+
+summary(Ni_DD_2023_long_clean$Concentracion)
+
+
+ggplot(Ni_DD_2023_long_clean, aes(y = Concentracion)) +
+  geom_boxplot() +
+  scale_y_continuous(limits = c(0, 100)) +  # Ajusta los límites si es necesario
+  labs(title = "Boxplot de Concentración de Ni en 2023", y = "Concentración de Ni (µg/m³)")
+
+
+# Histograma
+ggplot(Ni_DD_2023_long_clean, aes(x = Concentracion)) +
+  geom_histogram(binwidth = 1) + 
+  labs(title = "Histograma de Concentración de Ni en 2023", x = "Concentración de Ni (µg/m³)", y = "Frecuencia")
+
+# Diagrama de violín
+# ggplot(Ni_DD_2023_long_clean, aes(y = Concentracion)) +
+#   geom_violin() +
+#   labs(title = "Diagrama de violín de Concentración de Ni en 2023", y = "Concentración de Ni (µg/m³)")
+
+ggplot(Ni_DD_2023_long_clean, aes(y = Concentracion)) +
+  geom_boxplot() +
+  scale_y_continuous(limits = c(0, 10)) +  # Limitar los valores del eje y
+  labs(title = "Boxplot de Concentración de Ni en 2023", y = "Concentración de Ni (µg/m³)")
+
+
+ggplot(Ni_DD_2023_long_clean, aes(y = log(Concentracion + 1))) +  # Se añade 1 para evitar log(0)
+  geom_boxplot() +
+  labs(title = "Boxplot de Concentración de Ni en 2023 (Log-transformado)", y = "Log(Concentración de Ni)")
+
+
+#___________________________
+# Calcular la media y desviación estándar
+media <- mean(Ni_DD_2023_long_clean$Concentracion, na.rm = TRUE)
+desviacion <- sd(Ni_DD_2023_long_clean$Concentracion, na.rm = TRUE)
+
+# Definir outliers como valores mayores a 3 desviaciones estándar de la media
+outliers_sd <- Ni_DD_2023_long_clean %>%
+  filter(Concentracion < (media - 3 * desviacion) | Concentracion > (media + 3 * desviacion))
+
+# Ver los outliers
+head(outliers_sd)
+
+#___________________________
+
+
+# O imputar los valores faltantes (por ejemplo, con la media de la concentración)
+# Ni_DD_2023_long_imputed <- Ni_DD_2023_long %>%
+#   mutate(Concentracion = ifelse(is.na(Concentracion), 
+#                                 mean(Concentracion, na.rm = TRUE), 
+#                                 Concentracion))
+
+# Media y desviación estándar por mes
+resumen_mensual <- Ni_DD_2023_long_clean %>%
+  group_by(MES) %>%
+  summarise(
+    Media_Concentracion = mean(Concentracion),
+    Desviacion_Concentracion = sd(Concentracion)
+  )
+
+# Ver el resumen mensual
+print(resumen_mensual)
+
+# Visualización de la concentración diaria a lo largo del mes
+ggplot(Ni_DD_2023_long_clean, aes(x = Dia, y = Concentracion, group = MES, color = as.factor(MES))) +
+  geom_line() +
+  labs(title = "Evolución de la concentración diaria de Ni en 2023",
+       x = "Día del mes",
+       y = "Concentración de Ni (µg/m³)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotar etiquetas del eje X
+
+
+# Analizar valores extremos
+outliers %>% 
+  summarise(Mínimo = min(Concentracion, na.rm = TRUE),
+            Máximo = max(Concentracion, na.rm = TRUE),
+            Promedio = mean(Concentracion, na.rm = TRUE),
+            Desviación = sd(Concentracion, na.rm = TRUE))
+
+
+
+```
+

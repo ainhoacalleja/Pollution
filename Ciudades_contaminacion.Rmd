@@ -1,0 +1,182 @@
+---
+title: "Contaminacion_ciudades"
+author: "Ainhoa Calleja Rodriguez"
+date: "2024-12-15"
+output: pdf_document
+---
+
+## Ejemplo 1 con paquete leaflet
+```{r}
+# install.packages("leaflet")
+# install.packages("sf")
+# install.packages("dplyr")
+
+library(leaflet)
+library(sf)
+library(dplyr)
+
+# Crear un dataframe simulado con estaciones y niveles de contaminación
+data <- data.frame(
+  lat = c(41.3807, 41.3770, 41.3799, 41.3835),
+  lon = c(2.1924, 2.1942, 2.1907, 2.1867),
+  station = c("Estación 1", "Estación 2", "Estación 3", "Estación 4"),
+  pollution_level = c(50, 60, 40, 55)  # Nivel de contaminación en µg/m³
+)
+
+# Convertir el dataframe a un objeto sf
+stations_sf <- st_as_sf(data, coords = c("lon", "lat"), crs = 4326)
+
+# Crear el mapa interactivo
+leaflet(stations_sf) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    color = ~colorNumeric("YlOrRd", pollution_level)(pollution_level),
+    radius = 8,
+    popup = ~paste(station, "<br>Contaminación:", pollution_level, "µg/m³"),
+    fillOpacity = 0.7
+  ) %>%
+  addLegend(
+    position = "bottomright",
+    pal = colorNumeric("YlOrRd", domain = stations_sf$pollution_level),
+    values = stations_sf$pollution_level,
+    title = "Contaminación del aire"
+  )
+
+```
+
+## Ejemplo 2 con OpenStreetMap o shapefiles
+```{r}
+
+library(osmdata)
+library(sf)
+library(ggplot2)
+library(dplyr)
+
+# Definir el área de Barcelona (coordenadas aproximadas para la caja delimitadora)
+bbox <- c(-3.229, 40.105, -2.050, 41.370)  # Bbox para Barcelona
+
+# Cargar datos de OpenStreetMap (por ejemplo, edificios)
+osm_data <- opq(bbox = bbox) %>% 
+  add_osm_feature(key = "building") %>%  # Cambiar 'building' por otros elementos si es necesario
+  osmdata_sf()
+
+# Verificar los datos de los edificios
+osm_buildings <- osm_data$osm_polygons
+head(osm_buildings)
+
+# Supongamos que tenemos datos de contaminación en puntos específicos de Barcelona (simulados)
+# Crear un conjunto de datos de ejemplo con valores de contaminación y coordenadas (lat, lon)
+set.seed(123)  # Para reproducibilidad
+contaminacion_data <- data.frame(
+  lat = runif(10, 40.10, 41.37),  # Latitudes aleatorias dentro del área de Barcelona
+  lon = runif(10, -3.23, -2.05),  # Longitudes aleatorias dentro del área de Barcelona
+  NO2 = rnorm(10, mean = 50, sd = 15)  # Valores de NO2 simulados
+)
+
+# Convertir el conjunto de datos de contaminación en un objeto 'sf' (puntos espaciales)
+contaminacion_sf <- st_as_sf(contaminacion_data, coords = c("lon", "lat"), crs = 4326)
+
+# Crear el mapa con ggplot
+ggplot() +
+  # Mapa de edificios de Barcelona
+  geom_sf(data = osm_buildings, fill = "lightgrey", color = "white") +  
+  # Puntos de contaminación (NO2)
+  geom_sf(data = contaminacion_sf, aes(color = NO2), size = 4) +  
+  scale_color_viridis_c() +  # Usar una paleta de colores para la contaminación
+  theme_minimal() +
+  labs(title = "Mapa de Barcelona", subtitle = "Contaminación del aire (NO2) y edificios",
+       color = "Concentración de NO2 (µg/m³)")  # Etiqueta de la leyenda de contaminación
+
+```
+
+## Ejemplo 3 con OpenStreetMap o shapefiles
+```{r}
+
+library(osmdata)
+library(sf)
+library(ggplot2)
+library(dplyr)
+
+# Definir el área de Barcelona (coordenadas aproximadas para la caja delimitadora)
+bbox <- c(-3.229, 40.105, -2.050, 41.370)  # Bbox para Barcelona
+
+# Cargar datos de OpenStreetMap (por ejemplo, calles y edificios)
+osm_data <- opq(bbox = bbox) %>% 
+  add_osm_feature(key = "highway") %>%  # Cargar calles
+  osmdata_sf()
+
+# Verificar los datos de calles
+osm_streets <- osm_data$osm_lines
+osm_streets <- st_transform(osm_streets, crs = 4326)
+osm_streets <- st_transform(osm_streets, crs = 3857)
+print(osm_streets)
+st_geometry(osm_streets)
+# Verificar geometrías válidas
+st_is_valid(osm_streets)
+
+library(tmap)
+tm_shape(osm_streets) +
+  tm_lines()
+
+library(leaflet)
+leaflet() %>%
+  addTiles() %>%  # Fondo de mapa predeterminado
+  addPolylines(data = osm_streets)
+
+
+# Supongamos que tenemos datos de contaminación en puntos específicos de Barcelona (simulados)
+# Crear un conjunto de datos de ejemplo con valores de contaminación y coordenadas (lat, lon)
+set.seed(123)  # Para reproducibilidad
+contaminacion_data <- data.frame(
+  lat = runif(10, 40.10, 41.37),  # Latitudes aleatorias dentro del área de Barcelona
+  lon = runif(10, -3.23, -2.05),  # Longitudes aleatorias dentro del área de Barcelona
+  NO2 = rnorm(10, mean = 50, sd = 15)  # Valores de NO2 simulados
+)
+
+# Convertir el conjunto de datos de contaminación en un objeto 'sf' (puntos espaciales)
+contaminacion_sf <- st_as_sf(contaminacion_data, coords = c("lon", "lat"), crs = 4326)
+
+# Crear el mapa con ggplot
+ggplot() +
+  # Mapa de calles de Barcelona
+  geom_sf(data = osm_streets, color = "gray", size = 0.5) +  # Dibujar las calles
+  # Puntos de contaminación (NO2)
+  geom_sf(data = contaminacion_sf, aes(color = NO2), size = 4) +  
+  scale_color_viridis_c() +  # Usar una paleta de colores para la contaminación
+  theme_minimal() +
+  labs(title = "Mapa de Barcelona", subtitle = "Contaminación del aire (NO2) con calles",
+       color = "Concentración de NO2 (µg/m³)")  # Etiqueta de la leyenda de contaminación
+
+```
+
+
+## Ejemplo 4 con tmap
+```{r}
+# install.packages("tmap")
+# install.packages("sf")  # Si no lo tienes ya instalado
+
+library(tmap)
+library(sf)
+
+# Crear un dataframe con las ubicaciones de las estaciones y los niveles de contaminación
+data <- data.frame(
+  lat = c(41.3807, 41.3770, 41.3799, 41.3835),
+  lon = c(2.1924, 2.1942, 2.1907, 2.1867),
+  station = c("Estación 1", "Estación 2", "Estación 3", "Estación 4"),
+  pollution_level = c(50, 60, 40, 55)  # Nivel de contaminación en µg/m³
+)
+
+# Convertir el dataframe a un objeto sf
+stations_sf <- st_as_sf(data, coords = c("lon", "lat"), crs = 4326)
+
+# Crear el mapa base de Barcelona con OpenStreetMap
+tm_shape(stations_sf) +
+  tm_basemap("OpenStreetMap") +  # Agregar plano base de OpenStreetMap
+  tm_bubbles(col = "pollution_level", scale = 1.5, palette = "YlOrRd", size = "pollution_level") +
+  tm_layout(main.title = "Mapa de Contaminación del Aire en Barcelona") +
+  tm_view(bbox = c(2.1867, 41.3770, 2.1942, 41.3835))  # Ajustar el cuadro delimitador
+
+
+
+```
+
