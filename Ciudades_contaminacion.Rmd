@@ -2,11 +2,12 @@
 title: "Contaminacion_ciudades"
 author: "Ainhoa Calleja Rodriguez"
 date: "2024-12-15"
-output: pdf_document
+output: html_document 
+always_allow_html: true
 ---
 
 ## Ejemplo 1 con paquete leaflet
-```{r}
+```{r chunk1, eval=TRUE}
 # install.packages("leaflet")
 # install.packages("sf")
 # install.packages("dplyr")
@@ -39,13 +40,13 @@ leaflet(stations_sf) %>%
     position = "bottomright",
     pal = colorNumeric("YlOrRd", domain = stations_sf$pollution_level),
     values = stations_sf$pollution_level,
-    title = "Contaminación del aire"
+    title = "Contaminación del aire en Estaciones de captura"
   )
 
 ```
 
-## Ejemplo 2 con OpenStreetMap o shapefiles
-```{r}
+## Ejemplo 2 con OpenStreetMap o shapefiles. Status = IN PROGRESS
+```{r chunk2, eval=FALSE}
 
 library(osmdata)
 library(sf)
@@ -90,7 +91,7 @@ ggplot() +
 ```
 
 ## Ejemplo 3 con OpenStreetMap o shapefiles
-```{r}
+```{r chunk3, eval=TRUE}
 
 library(osmdata)
 library(sf)
@@ -109,19 +110,19 @@ osm_data <- opq(bbox = bbox) %>%
 osm_streets <- osm_data$osm_lines
 osm_streets <- st_transform(osm_streets, crs = 4326)
 osm_streets <- st_transform(osm_streets, crs = 3857)
-print(osm_streets)
+#print(osm_streets)
 st_geometry(osm_streets)
 # Verificar geometrías válidas
-st_is_valid(osm_streets)
+# st_is_valid(osm_streets)
 
 library(tmap)
 tm_shape(osm_streets) +
   tm_lines()
 
-library(leaflet)
-leaflet() %>%
-  addTiles() %>%  # Fondo de mapa predeterminado
-  addPolylines(data = osm_streets)
+# library(leaflet)
+# leaflet() %>%
+#   addTiles() %>%  # Fondo de mapa predeterminado
+#   addPolylines(data = osm_streets)
 
 
 # Supongamos que tenemos datos de contaminación en puntos específicos de Barcelona (simulados)
@@ -144,14 +145,14 @@ ggplot() +
   geom_sf(data = contaminacion_sf, aes(color = NO2), size = 4) +  
   scale_color_viridis_c() +  # Usar una paleta de colores para la contaminación
   theme_minimal() +
-  labs(title = "Mapa de Barcelona", subtitle = "Contaminación del aire (NO2) con calles",
+  labs(title = "Mapa de Barcelona", subtitle = "Contaminación del aire (NO2) por calles",
        color = "Concentración de NO2 (µg/m³)")  # Etiqueta de la leyenda de contaminación
 
 ```
 
 
-## Ejemplo 4 con tmap
-```{r}
+## Ejemplo 4 con tmap. Status = IN PROGRESS
+```{r chunk4, eval=TRUE}
 # install.packages("tmap")
 # install.packages("sf")  # Si no lo tienes ya instalado
 
@@ -169,12 +170,15 @@ data <- data.frame(
 # Convertir el dataframe a un objeto sf
 stations_sf <- st_as_sf(data, coords = c("lon", "lat"), crs = 4326)
 
+tmap_mode("view")
 # Crear el mapa base de Barcelona con OpenStreetMap
 tm_shape(stations_sf) +
   tm_basemap("OpenStreetMap") +  # Agregar plano base de OpenStreetMap
   tm_bubbles(col = "pollution_level", scale = 1.5, palette = "YlOrRd", size = "pollution_level") +
   tm_layout(main.title = "Mapa de Contaminación del Aire en Barcelona") +
   tm_view(bbox = c(2.1867, 41.3770, 2.1942, 41.3835))  # Ajustar el cuadro delimitador
+
+
 
 
 
